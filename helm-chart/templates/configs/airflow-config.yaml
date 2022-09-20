@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "airflow-config"
+data:
+  airflow.cfg: |
+    [core]
+    dags_folder = /opt/airflow/dags
+    executor = KubernetesExecutor
+    load_examples = False
+    load_default_connections = False
+    # ui to hide sensitive variable fields when set to true
+    hide_sensitive_variable_fields = True
+
+    [logging]
+    remote_logging = false
+    base_log_folder = /opt/airflow/logs
+    
+    [kubernetes]
+    namespace = {{ .Release.Namespace }}
+    pod_template_file = /opt/airflow/pod-template.yaml
+    worker_container_repository = {{ .Values.airflow.dags_image.repository }}
+    worker_container_tag = {{ .Values.airflow.dags_image.tag }}
+    delete_worker_pods = True
+    in_cluster = True
+    # https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#worker-pods-creation-batch-size
+    worker_pods_creation_batch_size = 10

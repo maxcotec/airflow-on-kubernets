@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler-app
+  template:
+    metadata:
+      labels:
+        dag: 'true'
+        app: airflow-scheduler-app
+    spec:
+      restartPolicy: Always
+      initContainers:
+        - name: wait-for-mysql
+          image: public.ecr.aws/runecast/busybox:1.32.1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'until nslookup "{{ .Values.mysql.host }}"; do echo waiting for mysql; sleep 2; done;' ]
+        - name: run-airflow-migrations
+          image: {{ .Values.airflow.dags_image.repository | toString }}:{{ .Values.airflow.dags_image.tag | toString }}
+          imagePullPolicy: {{ .Values.airflow.dags_image.pull_policy }}
+          command: [ "/bin/bash", "-c" ]
+          args: [ "airflow db init; airflow db upgrade" ]
+          env:
+            - name: AIRFLOW__CORE__FERNET_KEY
+              value: {{ .Values.airflow.configs.fernet_key }}
+            - name: DB_HOST
+              value: {{ .Values.mysql.host }}
+            - name: DB_DATABASE
+              value: {{ .Values.mysql.database }}
+            - name: DB_USER
+              value: {{ .Values.mysql.user }}
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.password | quote }}
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: mysql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):3306/$(DB_DATABASE)
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "false"
+        - name: create-admin-user
+          image: {{ .Values.airflow.dags_image.repository | toString }}:{{ .Values.airflow.dags_image.tag | toString }}
+          imagePullPolicy: {{ .Values.airflow.dags_image.pull_policy }}
+          command: [ "/bin/bash", "-c" ]
+          args: [ "airflow users create -r Admin -u {{ .Values.airflow.webserver.username }} -e admin@info.com -f admin -l user -p {{ .Values.airflow.webserver.password }} " ]
+          env:
+            - name: AIRFLOW__CORE__FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow
+                  key: fernet_key
+            - name: DB_HOST
+              value: {{ .Values.mysql.host }}
+            - name: DB_DATABASE
+              value: {{ .Values.mysql.database }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: password
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: mysql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):3306/$(DB_DATABASE)
+      containers:
+        - name: airflow-scheduler
+          image: {{ .Values.airflow.dags_image.repository | toString }}:{{ .Values.airflow.dags_image.tag | toString }}
+          imagePullPolicy: IfNotPresent
+          command: [ "/bin/bash", "-c" ]
+          args: [ "airflow scheduler" ]
+          env:
+            - name: DB_HOST
+              value: {{ .Values.mysql.host }}
+            - name: DB_DATABASE
+              value: {{ .Values.mysql.database }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: password
+            - name: AIRFLOW__CORE__FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow
+                  key: fernet_key
+            - name: AIRFLOW__WEBSERVER__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: webserver
+                  key: secret_key
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: mysql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):3306/$(DB_DATABASE)
+          volumeMounts:
+            - name: airflow-config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: pod-template
+              mountPath: /opt/airflow/pod-template.yaml
+              subPath: pod_template.yaml
+            - name: airflow-logs
+              mountPath: "/opt/airflow/logs"
+      volumes:
+        - name: airflow-config
+          configMap:
+            name: airflow-config
+        - name: pod-template
+          configMap:
+            name: pod-template-config
+        - name: airflow-logs
+          persistentVolumeClaim:
+            claimName: airflow-logs

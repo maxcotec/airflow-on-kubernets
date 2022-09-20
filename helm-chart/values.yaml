@@ -1,0 +1,17 @@
+airflow:
+  dags_image:
+    repository: localhost:5001/airflow_first_dag    # repository URL
+    tag: 0.1.0                                      # airflow dags image version
+    pull_policy: Always                             # change this to `Always` if changes applied on same tagged image.
+  webserver:
+    username: admin
+    password: "12345678"
+    secret_key: topsecret
+  configs:
+    fernet_key: 9jgWYeShQAYRS5E4Gu_n9GoGAuml4n50IpS-jifVqdA=
+
+mysql:
+  host: mysql
+  username: airflow
+  database: airflow
+  password: "12345678"

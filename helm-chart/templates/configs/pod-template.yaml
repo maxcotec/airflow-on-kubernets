@@ -1,0 +1,56 @@
+# template for KubernetesPodOperator
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pod-template-config"
+data:
+  pod_template.yaml: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: dummy-name
+    spec:
+      containers:
+        - args: [ ]
+          command: [ ]
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: LocalExecutor
+            - name: AIRFLOW__CORE__FERNET_KEY
+              value: {{ .Values.airflow.configs.fernet_key }}
+            - name: DB_HOST
+              value: {{ .Values.mysql.host }}
+            - name: DB_DATABASE
+              value: {{ .Values.mysql.database }}
+            - name: DB_USER
+              value: {{ .Values.mysql.user }}
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.password | quote }}
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: mysql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):3306/$(DB_DATABASE)
+          image: dummy_image
+          imagePullPolicy: IfNotPresent
+          name: base
+          volumeMounts:
+            - mountPath: /opt/airflow/logs
+              name: airflow-logs
+              readOnly: false
+            - name: airflow-config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+              readOnly: true
+
+      hostNetwork: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 50000
+      nodeSelector: { }
+      affinity: { }
+      tolerations: [ ]
+      volumes:
+        - name: airflow-logs
+          persistentVolumeClaim:
+            claimName: airflow-logs
+        - name: airflow-config  
+          configMap:
+            name: airflow-config

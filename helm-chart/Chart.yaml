@@ -1,0 +1,11 @@
+apiVersion: v1
+description: Airflow helm-chart by Maxcotec to run on Kubernets using Kubernets Executor
+icon: https://airflow.apache.org/_images/pin_large.png
+keywords:
+- workflow
+- airflow
+- dag
+name: airflow-k8s-maxcotec
+sources:
+  - https://airflow.apache.org/
+version: 0.1.0

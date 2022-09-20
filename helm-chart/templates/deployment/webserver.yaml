@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver-svc
+spec:
+  type: NodePort
+  ports:
+    - name: web
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+  selector:
+    app: airflow-webserver-app
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-webserver-app
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver-app
+    spec:
+      restartPolicy: Always
+      initContainers:
+        - name: wait-for-mysql
+          image: public.ecr.aws/runecast/busybox:1.32.1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'until nslookup "{{ .Values.mysql.host }}"; do echo waiting for database; sleep 2; done;' ]
+      containers:
+        - name: airflow-webserver-app
+          image: {{ .Values.airflow.dags_image.repository | toString }}:{{ .Values.airflow.dags_image.tag | toString }}
+          imagePullPolicy: {{ .Values.airflow.dags_image.pull_policy }}
+          ports:
+            - containerPort: 8080
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "airflow webserver" ]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: DB_HOST
+              value: {{ .Values.mysql.host }}
+            - name: DB_DATABASE
+              value: {{ .Values.mysql.database }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: password
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: mysql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):3306/$(DB_DATABASE)
+            - name: AIRFLOW__WEBSERVER__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: webserver
+                  key: secret_key
+            - name: AIRFLOW__CORE__FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow
+                  key: fernet_key
+          volumeMounts:
+            - name: airflow-config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: pod-template
+              mountPath: /opt/airflow/pod-template.yaml
+              subPath: pod_template.yaml
+            - name: airflow-logs
+              mountPath: "/opt/airflow/logs"
+      volumes:
+        - name: airflow-config
+          configMap:
+            name: airflow-config
+        - name: pod-template
+          configMap:
+            name: pod-template-config
+        - name: airflow-logs
+          persistentVolumeClaim:
+            claimName: airflow-logs

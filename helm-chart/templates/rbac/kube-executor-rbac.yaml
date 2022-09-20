@@ -1,0 +1,25 @@
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Namespace }}-ns-kubeExecutorAccess
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: ["", "extensions", "apps"]
+    resources: ["pods", "pods/log", "pods/exec"]
+    verbs: ["watch", "create", "delete", "get", "list", "patch"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Namespace }}-ns-kubeExecutorAccess-binding
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Namespace }}-ns-kubeExecutorAccess
