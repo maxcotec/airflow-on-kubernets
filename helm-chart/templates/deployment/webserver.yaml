@@ -32,7 +32,8 @@ spec:
         - name: wait-for-mysql
           image: public.ecr.aws/runecast/busybox:1.32.1
           imagePullPolicy: IfNotPresent
-          command: [ 'sh', '-c', 'until nslookup "{{ .Values.mysql.host }}"; do echo waiting for database; sleep 2; done;' ]
+          command: [ 'sh', '-c', 'echo -e "Checking for the availability of MySQL Server deployment"; while ! nc -z mysql 3306; do sleep 2;
+                      echo waiting...; done; echo -e "  >> MySQL DB Server has started";' ]
       containers:
         - name: airflow-webserver-app
           image: {{ .Values.airflow.dags_image.repository | toString }}:{{ .Values.airflow.dags_image.tag | toString }}

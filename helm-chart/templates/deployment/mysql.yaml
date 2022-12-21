@@ -29,7 +29,7 @@ spec:
         runAsUser: 999
       containers:
         # v8 required extra libraries to be installed in airflow images for authentication
-        - image: localhost:5001/mysql:5.7
+        - image: bingozhou/mysql5.7:latest
           name: mysql-app
           imagePullPolicy: IfNotPresent
           ports:
