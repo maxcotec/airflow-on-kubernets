@@ -42,3 +42,11 @@ Docker desktop: 4.10.1
 3. tag the image with local docker registry host `docker tag airflow_dags:0.1.0 localhost:5001/airflow_dags:0.1.0`
 4. push the airflow image to local docker registry `docker push localhost:5001/airflow_dags:0.1.0`
 5. deploy helm chart `helm upgrade --install airflow . --values values.yaml --set airflow.dags_image.repository=localhost/airflow_dags --set airflow.dags_image.tags=0.1.0`
+
+## KubernetesPodOperator DAG
+
+A new DAG has been added named `hello_KubePodOp` (located here `airflow-dags/dags/kubePodOpDag.py`), that demonstrates usage of KubernetesPodOperator as a task. 
+For demonstration purpose, we use demo python code from this repository https://github.com/maxcotec/k8sPodOp-app. Build image by following instructions on repo README 
+and push the image to local docker registry. You can also use your own docker image to run against KubernetesPodOperator. 
+
+Video tutorial on this is coming-soon on YouTube.

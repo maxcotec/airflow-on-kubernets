@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-configs"
+data:
+  env_from: config_map
+  another_variable: from_config_map
+

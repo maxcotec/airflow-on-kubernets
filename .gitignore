@@ -1,3 +1,4 @@
 kind_cluster/data
 .venv/
 .idea/
+.DS_Store
